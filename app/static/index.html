@@ -86,39 +86,6 @@
         font-size: 16px;
       }
 
-      .endpoint {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: end;
-        gap: 10px;
-        margin: 0 0 22px;
-        padding: 14px 16px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
-      }
-
-      .endpoint label {
-        display: grid;
-        gap: 6px;
-        min-width: min(100%, 340px);
-        color: #526071;
-        font-size: 12px;
-        font-weight: 750;
-        text-transform: uppercase;
-      }
-
-      .endpoint input {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid #b8c1cf;
-        border-radius: 8px;
-        padding: 8px 10px;
-        color: var(--ink);
-        font: 15px/1.35 Arial, Helvetica, sans-serif;
-        text-transform: none;
-      }
-
       .dropzone {
         display: grid;
         place-items: center;
@@ -351,14 +318,6 @@
         <p class="header-copy">Upload shop-admin PDFs, preview the mixed sheet, and generate a print-ready A4 layout with clean cut boundaries.</p>
       </header>
 
-      <form id="endpointForm" class="endpoint" hidden>
-        <label for="apiBaseInput">
-          API endpoint
-          <input id="apiBaseInput" type="url" placeholder="https://your-backend.example.com" />
-        </label>
-        <button class="secondary" type="submit">Save endpoint</button>
-      </form>
-
       <section id="dropzone" class="dropzone">
         <div>
           <p>Drop PDF files here</p>
@@ -419,28 +378,12 @@
       const status = document.querySelector("#status");
       const cutLines = document.querySelector("#cutLines");
       const allowRotation = document.querySelector("#allowRotation");
-      const endpointForm = document.querySelector("#endpointForm");
-      const apiBaseInput = document.querySelector("#apiBaseInput");
+      const productionApiBase = "https://printout-optimizer-api.onrender.com";
 
       let files = [];
       let currentJob = null;
       let previewRequestId = 0;
       let apiBase = resolveApiBase();
-
-      apiBaseInput.value = apiBase;
-      endpointForm.hidden = !isStaticHost();
-
-      endpointForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        apiBase = normalizeApiBase(apiBaseInput.value);
-        apiBaseInput.value = apiBase;
-        if (apiBase) {
-          localStorage.setItem("printoutApiBase", apiBase);
-        } else {
-          localStorage.removeItem("printoutApiBase");
-        }
-        setStatus(apiBase ? "Endpoint saved." : "Using this site's backend.");
-      });
 
       fileInput.addEventListener("change", () => setFiles([...fileInput.files]));
 
@@ -660,13 +603,9 @@
         const params = new URLSearchParams(window.location.search);
         const fromQuery = params.get("api");
         if (fromQuery !== null) {
-          const normalized = normalizeApiBase(fromQuery);
-          if (normalized) {
-            localStorage.setItem("printoutApiBase", normalized);
-          }
-          return normalized;
+          return normalizeApiBase(fromQuery);
         }
-        return normalizeApiBase(localStorage.getItem("printoutApiBase") || "");
+        return isLocalHost() ? "" : productionApiBase;
       }
 
       function normalizeApiBase(value) {
@@ -677,8 +616,8 @@
         return `${apiBase}${path}`;
       }
 
-      function isStaticHost() {
-        return window.location.hostname.endsWith("github.io") || window.location.protocol === "file:";
+      function isLocalHost() {
+        return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
       }
 
       function escapeHtml(value) {

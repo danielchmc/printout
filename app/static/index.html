@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Printout Optimizer</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #202124;
+        --muted: #6f7782;
+        --soft: #f6f7f9;
+        --line: #dfe3ea;
+        --panel: #ffffff;
+        --app-bg: #f5f6f8;
+        --accent: #2563eb;
+        --accent-dark: #1d4ed8;
+        --accent-soft: #eff6ff;
+        --warn: #946200;
+        --danger: #a62639;
+        --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 18% -8%, rgba(37, 99, 235, 0.10), transparent 34%),
+          linear-gradient(180deg, #ffffff 0, var(--app-bg) 360px, var(--app-bg) 100%);
+        font: 15px/1.45 Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(1240px, calc(100vw - 32px));
+        margin: 0 auto 56px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 28px 0 22px;
+        margin-bottom: 28px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: clamp(30px, 4vw, 44px);
+        line-height: 1.04;
+        font-weight: 750;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .brandline {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .brandline::before {
+        content: "";
+        width: 26px;
+        height: 2px;
+        background: var(--accent);
+        display: inline-block;
+      }
+
+      .header-copy {
+        max-width: 440px;
+        font-size: 16px;
+      }
+
+      .endpoint {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 10px;
+        margin: 0 0 22px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .endpoint label {
+        display: grid;
+        gap: 6px;
+        min-width: min(100%, 340px);
+        color: #526071;
+        font-size: 12px;
+        font-weight: 750;
+        text-transform: uppercase;
+      }
+
+      .endpoint input {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #b8c1cf;
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: var(--ink);
+        font: 15px/1.35 Arial, Helvetica, sans-serif;
+        text-transform: none;
+      }
+
+      .dropzone {
+        display: grid;
+        place-items: center;
+        min-height: 190px;
+        padding: 32px;
+        border: 1px dashed #aeb7c5;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: var(--shadow);
+        text-align: center;
+        transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+      }
+
+      .dropzone.dragging {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        transform: translateY(-1px);
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      button,
+      .file-button {
+        appearance: none;
+        border: 1px solid var(--accent);
+        border-radius: 9px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 16px;
+        font: inherit;
+        font-weight: 700;
+        letter-spacing: 0;
+        transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+      }
+
+      button:hover,
+      .file-button:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+        transform: translateY(-1px);
+      }
+
+      button.secondary {
+        background: #fff;
+        color: var(--accent);
+      }
+
+      button.secondary:hover {
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .panel {
+        margin-top: 24px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfcff;
+        color: var(--ink);
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 750;
+        letter-spacing: 0;
+      }
+
+      .panel-header .status {
+        color: var(--muted);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      th {
+        color: #526071;
+        background: var(--soft);
+        font-weight: 750;
+        font-size: 12px;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-width: 62px;
+        justify-content: center;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #eef2f7;
+        color: #364152;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .confidence-high {
+        background: #e8f3eb;
+        color: #176437;
+      }
+
+      .confidence-medium {
+        background: #fff4df;
+        color: var(--warn);
+      }
+
+      .confidence-low {
+        background: #fae7eb;
+        color: var(--danger);
+      }
+
+      .settings {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: center;
+      }
+
+      .preview-body {
+        padding: 16px;
+        background: #fff;
+      }
+
+      .layout-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: flex-start;
+      }
+
+      .preview-page {
+        width: min(320px, 100%);
+      }
+
+      .preview-page-title {
+        color: #475569;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .preview-page svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #fff;
+        border: 1px solid #cad1dc;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      label {
+        color: inherit;
+        font-weight: 650;
+      }
+
+      .status {
+        min-height: 22px;
+        color: var(--muted);
+      }
+
+      .error {
+        color: var(--danger);
+      }
+
+      @media (max-width: 760px) {
+        header {
+          display: block;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="brandline">Print room utility</div>
+          <h1>Printout Optimizer</h1>
+        </div>
+        <p class="header-copy">Upload shop-admin PDFs, preview the mixed sheet, and generate a print-ready A4 layout with clean cut boundaries.</p>
+      </header>
+
+      <form id="endpointForm" class="endpoint" hidden>
+        <label for="apiBaseInput">
+          API endpoint
+          <input id="apiBaseInput" type="url" placeholder="https://your-backend.example.com" />
+        </label>
+        <button class="secondary" type="submit">Save endpoint</button>
+      </form>
+
+      <section id="dropzone" class="dropzone">
+        <div>
+          <p>Drop PDF files here</p>
+          <div class="actions" style="justify-content: center">
+            <label class="file-button" for="fileInput">Choose PDFs</label>
+            <input id="fileInput" type="file" accept="application/pdf" multiple />
+          </div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="uploadButton" disabled>Analyze PDFs</button>
+        <span id="selectedFiles" class="status"></span>
+      </div>
+
+      <div id="regionState" hidden></div>
+
+      <section id="previewPanel" class="panel" hidden>
+        <div class="panel-header">
+          <h2>Preview</h2>
+          <span id="previewSummary" class="status"></span>
+        </div>
+        <div class="preview-body">
+          <div id="layoutPreview" class="layout-preview"></div>
+        </div>
+      </section>
+
+      <section id="generatePanel" class="panel" hidden>
+        <div class="panel-header">
+          <h2>Generate</h2>
+          <div class="settings">
+            <label><input id="cutLines" type="checkbox" checked /> Add cut-lines</label>
+            <label><input id="allowRotation" type="checkbox" checked /> Allow rotation</label>
+          </div>
+        </div>
+        <div class="actions" style="padding: 16px">
+          <button id="generateButton">Generate mixed A4 PDF</button>
+          <a id="downloadLink" hidden>
+            <button class="secondary" type="button">Download PDF</button>
+          </a>
+          <span id="status" class="status"></span>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const fileInput = document.querySelector("#fileInput");
+      const uploadButton = document.querySelector("#uploadButton");
+      const selectedFiles = document.querySelector("#selectedFiles");
+      const dropzone = document.querySelector("#dropzone");
+      const previewPanel = document.querySelector("#previewPanel");
+      const generatePanel = document.querySelector("#generatePanel");
+      const regionState = document.querySelector("#regionState");
+      const previewSummary = document.querySelector("#previewSummary");
+      const layoutPreview = document.querySelector("#layoutPreview");
+      const generateButton = document.querySelector("#generateButton");
+      const downloadLink = document.querySelector("#downloadLink");
+      const status = document.querySelector("#status");
+      const cutLines = document.querySelector("#cutLines");
+      const allowRotation = document.querySelector("#allowRotation");
+      const endpointForm = document.querySelector("#endpointForm");
+      const apiBaseInput = document.querySelector("#apiBaseInput");
+
+      let files = [];
+      let currentJob = null;
+      let previewRequestId = 0;
+      let apiBase = resolveApiBase();
+
+      apiBaseInput.value = apiBase;
+      endpointForm.hidden = !isStaticHost();
+
+      endpointForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        apiBase = normalizeApiBase(apiBaseInput.value);
+        apiBaseInput.value = apiBase;
+        if (apiBase) {
+          localStorage.setItem("printoutApiBase", apiBase);
+        } else {
+          localStorage.removeItem("printoutApiBase");
+        }
+        setStatus(apiBase ? "Endpoint saved." : "Using this site's backend.");
+      });
+
+      fileInput.addEventListener("change", () => setFiles([...fileInput.files]));
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.add("dragging");
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.remove("dragging");
+        });
+      });
+
+      dropzone.addEventListener("drop", (event) => {
+        const dropped = [...event.dataTransfer.files].filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+        setFiles(dropped);
+      });
+
+      uploadButton.addEventListener("click", async () => {
+        if (!files.length) return;
+        setStatus("Analyzing PDFs...");
+        uploadButton.disabled = true;
+        downloadLink.hidden = true;
+
+        const form = new FormData();
+        files.forEach((file) => form.append("files", file));
+
+        try {
+          const response = await fetch(apiPath("/api/jobs"), { method: "POST", body: form });
+          if (!response.ok) throw new Error(await response.text());
+          currentJob = await response.json();
+          renderJob(currentJob);
+          setStatus("Analysis complete.");
+        } catch (error) {
+          setStatus(`Analysis failed: ${error.message}`, true);
+        } finally {
+          uploadButton.disabled = files.length === 0;
+        }
+      });
+
+      generateButton.addEventListener("click", async () => {
+        if (!currentJob) return;
+        const includeRegionIds = selectedRegionIds();
+        setStatus("Generating PDF...");
+        generateButton.disabled = true;
+        downloadLink.hidden = true;
+
+        try {
+          const response = await fetch(apiPath(`/api/jobs/${currentJob.id}/generate`), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              include_region_ids: includeRegionIds,
+              add_cut_lines: document.querySelector("#cutLines").checked,
+              allow_rotation: document.querySelector("#allowRotation").checked,
+              output_filename: "mixed-printout.pdf"
+            })
+          });
+          if (!response.ok) throw new Error(await response.text());
+          currentJob = await response.json();
+          downloadLink.href = apiPath(`/api/jobs/${currentJob.id}/download`);
+          downloadLink.hidden = false;
+          setStatus("PDF ready.");
+        } catch (error) {
+          setStatus(`Generation failed: ${error.message}`, true);
+        } finally {
+          generateButton.disabled = false;
+        }
+      });
+
+      regionState.addEventListener("change", (event) => {
+        if (event.target.matches("[data-region-id]")) {
+          updateLayoutPreview();
+        }
+      });
+
+      cutLines.addEventListener("change", updateLayoutPreview);
+      allowRotation.addEventListener("change", updateLayoutPreview);
+
+      function setFiles(nextFiles) {
+        files = nextFiles;
+        uploadButton.disabled = files.length === 0;
+        selectedFiles.textContent = files.length ? `${files.length} PDF${files.length === 1 ? "" : "s"} selected` : "";
+      }
+
+      function renderJob(job) {
+        const regions = job.files.flatMap((file) => file.regions);
+        regionState.innerHTML = "";
+
+        for (const region of regions) {
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.dataset.regionId = region.id;
+          input.checked = region.occupied;
+          regionState.append(input);
+        }
+
+        previewPanel.hidden = false;
+        generatePanel.hidden = false;
+        updateLayoutPreview();
+      }
+
+      async function updateLayoutPreview() {
+        if (!currentJob) return;
+        const includeRegionIds = selectedRegionIds();
+        if (!includeRegionIds.length) {
+          layoutPreview.innerHTML = `<p>No regions selected.</p>`;
+          previewSummary.textContent = "";
+          return;
+        }
+
+        const requestId = ++previewRequestId;
+        previewSummary.textContent = "Updating...";
+
+        try {
+          const response = await fetch(apiPath(`/api/jobs/${currentJob.id}/layout`), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              include_region_ids: includeRegionIds,
+              add_cut_lines: cutLines.checked,
+              allow_rotation: allowRotation.checked,
+              output_filename: "mixed-printout.pdf"
+            })
+          });
+          if (!response.ok) throw new Error(await response.text());
+          const layout = await response.json();
+          if (requestId !== previewRequestId) return;
+          renderLayoutPreview(layout);
+        } catch (error) {
+          if (requestId !== previewRequestId) return;
+          layoutPreview.innerHTML = `<p class="error">Preview failed: ${escapeHtml(error.message)}</p>`;
+          previewSummary.textContent = "";
+        }
+      }
+
+      function renderLayoutPreview(layout) {
+        layoutPreview.innerHTML = "";
+        const placementsByPage = new Map();
+        for (const placement of layout.placements) {
+          const list = placementsByPage.get(placement.page_index) || [];
+          list.push(placement);
+          placementsByPage.set(placement.page_index, list);
+        }
+
+        previewSummary.textContent = `${layout.pages.length} output page${layout.pages.length === 1 ? "" : "s"}`;
+
+        for (const pageInfo of layout.pages) {
+          const pageWrap = document.createElement("div");
+          pageWrap.className = "preview-page";
+
+          const title = document.createElement("div");
+          title.className = "preview-page-title";
+          title.textContent = `Page ${pageInfo.index + 1}`;
+          pageWrap.append(title);
+
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("viewBox", `0 0 ${pageInfo.width_pt} ${pageInfo.height_pt}`);
+          svg.setAttribute("aria-label", `Preview page ${pageInfo.index + 1}`);
+
+          for (const placement of placementsByPage.get(pageInfo.index) || []) {
+            appendPlacement(svg, placement);
+          }
+
+          pageWrap.append(svg);
+          layoutPreview.append(pageWrap);
+        }
+      }
+
+      function appendPlacement(svg, placement) {
+        const rect = placement.rect;
+        const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        image.setAttribute("href", apiPath(`/api/jobs/${currentJob.id}/regions/${placement.region.id}/preview.png`));
+        image.setAttribute("preserveAspectRatio", "none");
+
+        if (placement.rotated) {
+          image.setAttribute("x", "0");
+          image.setAttribute("y", "0");
+          image.setAttribute("width", rect.y1 - rect.y0);
+          image.setAttribute("height", rect.x1 - rect.x0);
+          image.setAttribute("transform", `translate(${rect.x1} ${rect.y0}) rotate(90)`);
+        } else {
+          image.setAttribute("x", rect.x0);
+          image.setAttribute("y", rect.y0);
+          image.setAttribute("width", rect.x1 - rect.x0);
+          image.setAttribute("height", rect.y1 - rect.y0);
+        }
+        svg.append(image);
+
+        if (cutLines.checked) {
+          const border = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          border.setAttribute("x", rect.x0);
+          border.setAttribute("y", rect.y0);
+          border.setAttribute("width", rect.x1 - rect.x0);
+          border.setAttribute("height", rect.y1 - rect.y0);
+          border.setAttribute("fill", "none");
+          border.setAttribute("stroke", "#111");
+          border.setAttribute("stroke-width", "0.8");
+          svg.append(border);
+        }
+      }
+
+      function selectedRegionIds() {
+        return [...document.querySelectorAll("[data-region-id]:checked")].map((input) => input.dataset.regionId);
+      }
+
+      function setStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+      }
+
+      function resolveApiBase() {
+        const params = new URLSearchParams(window.location.search);
+        const fromQuery = params.get("api");
+        if (fromQuery !== null) {
+          const normalized = normalizeApiBase(fromQuery);
+          if (normalized) {
+            localStorage.setItem("printoutApiBase", normalized);
+          }
+          return normalized;
+        }
+        return normalizeApiBase(localStorage.getItem("printoutApiBase") || "");
+      }
+
+      function normalizeApiBase(value) {
+        return String(value || "").trim().replace(/\/+$/, "");
+      }
+
+      function apiPath(path) {
+        return `${apiBase}${path}`;
+      }
+
+      function isStaticHost() {
+        return window.location.hostname.endsWith("github.io") || window.location.protocol === "file:";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+    </script>
+  </body>
+</html>

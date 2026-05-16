@@ -40,6 +40,36 @@ To publish:
 4. Push to the `main` branch or run the `Deploy static site to GitHub Pages`
    workflow manually.
 
+## Free Backend Hosting
+
+Render is the simplest free host for this FastAPI backend. The repo includes
+`render.yaml`, so Render can create the service from the repository settings.
+
+Render's free web services sleep after a period of inactivity, so the first
+request after a quiet stretch can be slow. For a low-traffic demo, that is
+usually fine.
+
+To deploy:
+
+1. Push this repository to GitHub.
+2. Create a Render account at `https://render.com`.
+3. In Render, choose `New > Blueprint`.
+4. Connect this GitHub repository.
+5. Render should detect `render.yaml`; approve the `printout-optimizer-api`
+   service.
+6. Wait for the deploy to finish.
+7. Copy the service URL, which will look like:
+
+```text
+https://printout-optimizer-api.onrender.com
+```
+
+Then open the GitHub Pages site with that backend endpoint:
+
+```text
+https://YOUR-GITHUB-USER.github.io/YOUR-REPO/?api=https://printout-optimizer-api.onrender.com
+```
+
 ## Current MVP
 
 - Upload one or more PDF files.

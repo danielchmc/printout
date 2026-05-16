@@ -312,24 +312,24 @@
     <main>
       <header>
         <div>
-          <div class="brandline">Print room utility</div>
+          <div class="brandline">HiFi Klubben</div>
           <h1>Printout Optimizer</h1>
         </div>
-        <p class="header-copy">Upload shop-admin PDFs, preview the mixed sheet, and generate a print-ready A4 layout with clean cut boundaries.</p>
+        <p class="header-copy">Prepare product labels and campaign printouts for efficient A4 printing, trimming, and in-store display.</p>
       </header>
 
       <section id="dropzone" class="dropzone">
         <div>
-          <p>Drop PDF files here</p>
+          <p>Drop printout PDFs here</p>
           <div class="actions" style="justify-content: center">
-            <label class="file-button" for="fileInput">Choose PDFs</label>
+            <label class="file-button" for="fileInput">Select PDFs</label>
             <input id="fileInput" type="file" accept="application/pdf" multiple />
           </div>
         </div>
       </section>
 
       <div class="actions">
-        <button id="uploadButton" disabled>Analyze PDFs</button>
+        <button id="uploadButton" disabled>Prepare layout</button>
         <span id="selectedFiles" class="status"></span>
       </div>
 
@@ -337,7 +337,7 @@
 
       <section id="previewPanel" class="panel" hidden>
         <div class="panel-header">
-          <h2>Preview</h2>
+          <h2>Print Preview</h2>
           <span id="previewSummary" class="status"></span>
         </div>
         <div class="preview-body">
@@ -347,16 +347,16 @@
 
       <section id="generatePanel" class="panel" hidden>
         <div class="panel-header">
-          <h2>Generate</h2>
+          <h2>Output</h2>
           <div class="settings">
-            <label><input id="cutLines" type="checkbox" checked /> Add cut-lines</label>
+            <label><input id="cutLines" type="checkbox" checked /> Add cut lines</label>
             <label><input id="allowRotation" type="checkbox" checked /> Allow rotation</label>
           </div>
         </div>
         <div class="actions" style="padding: 16px">
-          <button id="generateButton">Generate mixed A4 PDF</button>
+          <button id="generateButton">Create A4 print file</button>
           <a id="downloadLink" hidden>
-            <button class="secondary" type="button">Download PDF</button>
+            <button class="secondary" type="button">Download print file</button>
           </a>
           <span id="status" class="status"></span>
         </div>
@@ -408,7 +408,7 @@
 
       uploadButton.addEventListener("click", async () => {
         if (!files.length) return;
-        setStatus("Analyzing PDFs...");
+        setStatus("Preparing layout...");
         uploadButton.disabled = true;
         downloadLink.hidden = true;
 
@@ -420,9 +420,9 @@
           if (!response.ok) throw new Error(await response.text());
           currentJob = await response.json();
           renderJob(currentJob);
-          setStatus("Analysis complete.");
+          setStatus("Layout ready.");
         } catch (error) {
-          setStatus(`Analysis failed: ${error.message}`, true);
+          setStatus(`Could not prepare layout: ${error.message}`, true);
         } finally {
           uploadButton.disabled = files.length === 0;
         }
@@ -431,7 +431,7 @@
       generateButton.addEventListener("click", async () => {
         if (!currentJob) return;
         const includeRegionIds = selectedRegionIds();
-        setStatus("Generating PDF...");
+        setStatus("Creating print file...");
         generateButton.disabled = true;
         downloadLink.hidden = true;
 
@@ -443,16 +443,16 @@
               include_region_ids: includeRegionIds,
               add_cut_lines: document.querySelector("#cutLines").checked,
               allow_rotation: document.querySelector("#allowRotation").checked,
-              output_filename: "mixed-printout.pdf"
+              output_filename: "printout-optimizer-a4.pdf"
             })
           });
           if (!response.ok) throw new Error(await response.text());
           currentJob = await response.json();
           downloadLink.href = apiPath(`/api/jobs/${currentJob.id}/download`);
           downloadLink.hidden = false;
-          setStatus("PDF ready.");
+          setStatus("Print file ready.");
         } catch (error) {
-          setStatus(`Generation failed: ${error.message}`, true);
+          setStatus(`Could not create print file: ${error.message}`, true);
         } finally {
           generateButton.disabled = false;
         }
@@ -470,7 +470,7 @@
       function setFiles(nextFiles) {
         files = nextFiles;
         uploadButton.disabled = files.length === 0;
-        selectedFiles.textContent = files.length ? `${files.length} PDF${files.length === 1 ? "" : "s"} selected` : "";
+        selectedFiles.textContent = files.length ? `${files.length} PDF${files.length === 1 ? "" : "s"} ready` : "";
       }
 
       function renderJob(job) {
@@ -494,13 +494,13 @@
         if (!currentJob) return;
         const includeRegionIds = selectedRegionIds();
         if (!includeRegionIds.length) {
-          layoutPreview.innerHTML = `<p>No regions selected.</p>`;
+          layoutPreview.innerHTML = `<p>No print areas selected.</p>`;
           previewSummary.textContent = "";
           return;
         }
 
         const requestId = ++previewRequestId;
-        previewSummary.textContent = "Updating...";
+        previewSummary.textContent = "Updating preview...";
 
         try {
           const response = await fetch(apiPath(`/api/jobs/${currentJob.id}/layout`), {
@@ -510,7 +510,7 @@
               include_region_ids: includeRegionIds,
               add_cut_lines: cutLines.checked,
               allow_rotation: allowRotation.checked,
-              output_filename: "mixed-printout.pdf"
+              output_filename: "printout-optimizer-a4.pdf"
             })
           });
           if (!response.ok) throw new Error(await response.text());
@@ -519,7 +519,7 @@
           renderLayoutPreview(layout);
         } catch (error) {
           if (requestId !== previewRequestId) return;
-          layoutPreview.innerHTML = `<p class="error">Preview failed: ${escapeHtml(error.message)}</p>`;
+          layoutPreview.innerHTML = `<p class="error">Could not update preview: ${escapeHtml(error.message)}</p>`;
           previewSummary.textContent = "";
         }
       }
@@ -533,7 +533,7 @@
           placementsByPage.set(placement.page_index, list);
         }
 
-        previewSummary.textContent = `${layout.pages.length} output page${layout.pages.length === 1 ? "" : "s"}`;
+        previewSummary.textContent = `${layout.pages.length} A4 page${layout.pages.length === 1 ? "" : "s"}`;
 
         for (const pageInfo of layout.pages) {
           const pageWrap = document.createElement("div");

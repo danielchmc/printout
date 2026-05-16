@@ -34,6 +34,11 @@ def index() -> FileResponse:
     return FileResponse(STATIC_ROOT / "index.html")
 
 
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon() -> Response:
     return Response(status_code=204)

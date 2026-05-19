@@ -54,6 +54,15 @@ def build_regions(
         if fallback:
             return fallback
 
+    return build_regions_from_edges(page, image, vertical_lines_px, horizontal_lines_px)
+
+
+def build_regions_from_edges(
+    page: fitz.Page,
+    image: np.ndarray,
+    vertical_lines_px: list[int],
+    horizontal_lines_px: list[int],
+) -> list[tuple[RegionRect, float]]:
     height_px, width_px = image.shape[:2]
     x_edges = [0, *vertical_lines_px, width_px]
     y_edges = [0, *horizontal_lines_px, height_px]
@@ -83,6 +92,10 @@ def build_fallback_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[Reg
     content_bbox = content_bounds_px(image)
     if content_bbox is None:
         return []
+
+    separator_regions = build_separator_regions(page, image)
+    if separator_regions:
+        return separator_regions
 
     height_px, width_px = image.shape[:2]
     x0, y0, x1, y1 = content_bbox
@@ -117,11 +130,6 @@ def build_fallback_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[Reg
         x1=page.rect.x0 + ((column + 1) / columns) * page.rect.width,
         y1=page.rect.y0 + ((row + 1) / rows) * page.rect.height,
     )
-    if classify_region(rect.width, rect.height) == "A4":
-        multi_cell_regions = build_multi_cell_fallback_regions(page, image, width_px, height_px)
-        if len(multi_cell_regions) > 1:
-            return multi_cell_regions
-
     if classify_region(rect.width, rect.height) == "custom":
         rect, cx0, cx1, cy0, cy1 = trim_custom_region_to_content_bounds(
             page,
@@ -142,50 +150,69 @@ def build_fallback_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[Reg
     return [(rect, occupancy_ratio(crop))]
 
 
-def build_multi_cell_fallback_regions(
-    page: fitz.Page,
-    image: np.ndarray,
-    width_px: int,
-    height_px: int,
-) -> list[tuple[RegionRect, float]]:
-    for columns, rows in fallback_grids(page):
-        if columns != 1 or rows < 4:
-            continue
+def build_separator_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[RegionRect, float]]:
+    vertical_lines_px, horizontal_lines_px = detect_separator_edges_px(image)
+    has_vertical_split = bool(vertical_lines_px)
+    has_horizontal_split = len(horizontal_lines_px) >= 2
+    if not has_vertical_split and not has_horizontal_split:
+        return []
 
-        cell_width = width_px / columns
-        cell_height = height_px / rows
-        occupied_cells: list[tuple[int, int, int, int, int, int, float]] = []
+    return build_regions_from_edges(page, image, vertical_lines_px, horizontal_lines_px)
 
-        for row in range(rows):
-            column = 0
-            cx0 = round(column * cell_width)
-            cy0 = round(row * cell_height)
-            cx1 = round((column + 1) * cell_width)
-            cy1 = round((row + 1) * cell_height)
-            crop = image[cy0:cy1, cx0:cx1]
-            ratio = occupancy_ratio(crop)
-            if ratio >= 0.02:
-                occupied_cells.append((row, column, cx0, cy0, cx1, cy1, ratio))
 
-        occupied_rows = [cell[0] for cell in occupied_cells]
-        expected_rows = list(range(len(occupied_rows)))
-        if len(occupied_rows) < 3 or occupied_rows != expected_rows or occupied_rows[-1] >= rows - 1:
-            continue
+def detect_separator_edges_px(image: np.ndarray) -> tuple[list[int], list[int]]:
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    height_px, width_px = gray.shape
+    mask = cv2.threshold(gray, 245, 255, cv2.THRESH_BINARY_INV)[1]
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_RECT,
+        (max(3, width_px // 300), max(3, height_px // 500)),
+    )
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        regions: list[tuple[RegionRect, float]] = []
-        for row, column, cx0, cy0, cx1, cy1, ratio in occupied_cells:
-            rect = RegionRect(
-                x0=page.rect.x0 + (column / columns) * page.rect.width,
-                y0=page.rect.y0 + (row / rows) * page.rect.height,
-                x1=page.rect.x0 + ((column + 1) / columns) * page.rect.width,
-                y1=page.rect.y0 + ((row + 1) / rows) * page.rect.height,
-            )
-            regions.append((rect, ratio))
+    vertical: list[int] = []
+    horizontal: list[int] = []
+    x_margin = max(8, int(width_px * 0.015))
+    y_margin = max(8, int(height_px * 0.015))
+    max_line_width = max(12, int(width_px * 0.01))
+    max_line_height = max(12, int(height_px * 0.01))
 
-        if len(regions) > 1:
-            return regions
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        x_center = x + round(width / 2)
+        y_center = y + round(height / 2)
+        if (
+            width >= width_px * 0.72
+            and height <= max_line_height
+            and y_margin < y_center < height_px - y_margin
+        ):
+            horizontal.append(y_center)
+        if (
+            height >= height_px * 0.72
+            and width <= max_line_width
+            and x_margin < x_center < width_px - x_margin
+        ):
+            vertical.append(x_center)
 
-    return []
+    return (
+        merge_close_edges(vertical, max(4, width_px // 400)),
+        merge_close_edges(horizontal, max(4, height_px // 400)),
+    )
+
+
+def merge_close_edges(values: list[int], tolerance: int) -> list[int]:
+    if not values:
+        return []
+
+    groups: list[list[int]] = []
+    for value in sorted(values):
+        if groups and value <= groups[-1][-1] + tolerance:
+            groups[-1].append(value)
+        else:
+            groups.append([value])
+
+    return [round(sum(group) / len(group)) for group in groups]
 
 
 def trim_custom_region_to_content_bounds(

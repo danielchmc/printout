@@ -117,6 +117,11 @@ def build_fallback_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[Reg
         x1=page.rect.x0 + ((column + 1) / columns) * page.rect.width,
         y1=page.rect.y0 + ((row + 1) / rows) * page.rect.height,
     )
+    if classify_region(rect.width, rect.height) == "A4":
+        multi_cell_regions = build_multi_cell_fallback_regions(page, image, width_px, height_px)
+        if len(multi_cell_regions) > 1:
+            return multi_cell_regions
+
     if classify_region(rect.width, rect.height) == "custom":
         rect, cx0, cx1, cy0, cy1 = trim_custom_region_to_content_bounds(
             page,
@@ -135,6 +140,52 @@ def build_fallback_regions(page: fitz.Page, image: np.ndarray) -> list[tuple[Reg
 
     crop = image[cy0:cy1, cx0:cx1]
     return [(rect, occupancy_ratio(crop))]
+
+
+def build_multi_cell_fallback_regions(
+    page: fitz.Page,
+    image: np.ndarray,
+    width_px: int,
+    height_px: int,
+) -> list[tuple[RegionRect, float]]:
+    for columns, rows in fallback_grids(page):
+        if columns != 1 or rows < 4:
+            continue
+
+        cell_width = width_px / columns
+        cell_height = height_px / rows
+        occupied_cells: list[tuple[int, int, int, int, int, int, float]] = []
+
+        for row in range(rows):
+            column = 0
+            cx0 = round(column * cell_width)
+            cy0 = round(row * cell_height)
+            cx1 = round((column + 1) * cell_width)
+            cy1 = round((row + 1) * cell_height)
+            crop = image[cy0:cy1, cx0:cx1]
+            ratio = occupancy_ratio(crop)
+            if ratio >= 0.02:
+                occupied_cells.append((row, column, cx0, cy0, cx1, cy1, ratio))
+
+        occupied_rows = [cell[0] for cell in occupied_cells]
+        expected_rows = list(range(len(occupied_rows)))
+        if len(occupied_rows) < 3 or occupied_rows != expected_rows or occupied_rows[-1] >= rows - 1:
+            continue
+
+        regions: list[tuple[RegionRect, float]] = []
+        for row, column, cx0, cy0, cx1, cy1, ratio in occupied_cells:
+            rect = RegionRect(
+                x0=page.rect.x0 + (column / columns) * page.rect.width,
+                y0=page.rect.y0 + (row / rows) * page.rect.height,
+                x1=page.rect.x0 + ((column + 1) / columns) * page.rect.width,
+                y1=page.rect.y0 + ((row + 1) / rows) * page.rect.height,
+            )
+            regions.append((rect, ratio))
+
+        if len(regions) > 1:
+            return regions
+
+    return []
 
 
 def trim_custom_region_to_content_bounds(
@@ -188,6 +239,8 @@ def trim_custom_region_to_content_bounds(
 def fallback_grids(page: fitz.Page) -> list[tuple[int, int]]:
     if page.rect.width >= page.rect.height:
         return [
+            (1, 4),
+            (1, 3),
             (4, 2),
             (3, 4),
             (3, 2),
@@ -198,9 +251,10 @@ def fallback_grids(page: fitz.Page) -> list[tuple[int, int]]:
         ]
 
     return [
-        (2, 4),
         (1, 6),
         (1, 4),
+        (1, 3),
+        (2, 4),
         (2, 2),
         (1, 2),
         (2, 1),

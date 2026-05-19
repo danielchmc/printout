@@ -3,12 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import mimetypes
+import os
 import uuid
 from urllib import request
 
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("PRINTOPT_BASE_URL", "http://127.0.0.1:8000")
 
 
 def main() -> None:
